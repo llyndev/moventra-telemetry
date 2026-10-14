@@ -1,5 +1,9 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Moventra.Api/Moventra.Api.csproj" />
     <Project Path="src/Moventra.Contracts/Moventra.Contracts.csproj" />
+    <Project Path="src/Moventra.Ingestor/Moventra.Ingestor.csproj" />
+    <Project Path="src/Moventra.RulesEngine/Moventra.RulesEngine.csproj" />
+    <Project Path="src/Moventra.Simulator/Moventra.Simulator.csproj" />
   </Folder>
 </Solution>
