@@ -14,7 +14,7 @@ public sealed record TelemetryRecorded
     public required string VehicleId { get; init; }
     
     // Contator: 1, 2, 3... Define a ordem das leituras.
-    public required long Sequrence { get; init; }
+    public required long Sequence { get; init; }
     
     // Quando a leitura foi feita (relógio do caminhão, em UTC).
     public required DateTimeOffset RecordedAt { get; init; }
