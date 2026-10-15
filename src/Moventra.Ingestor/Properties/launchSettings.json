@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Moventra.Ingestor": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
