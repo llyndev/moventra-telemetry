@@ -1,6 +1,7 @@
 ﻿using MassTransit;
 using Moventra.Ingestor.Consumers;
-using Microsoft.Extensions.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Moventra.Ingestor.Data;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -12,6 +13,11 @@ var rabbitUser = builder.Configuration["RabbitMq:Username"]
 
 var rabbitPassword = builder.Configuration["RabbitMq:Password"]
                      ?? throw new InvalidOperationException("RabbitMq:Password não configurado");
+
+var connectionString = builder.Configuration.GetConnectionString("Telemetry")
+                       ?? throw new InvalidOperationException("ConnectionStrings:Telemetry não configurada.");
+
+builder.Services.AddDbContext<TelemetryDbContext>(options => options.UseNpgsql(connectionString));
 
 builder.Services.AddMassTransit(x =>
 {
