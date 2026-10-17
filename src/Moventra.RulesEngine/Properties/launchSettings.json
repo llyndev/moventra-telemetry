@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Moventra.RulesEngine": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

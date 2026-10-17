@@ -1,6 +1,7 @@
 ﻿using MassTransit;
 using Moventra.Contracts.Telemetry;
 using Microsoft.Extensions.Configuration;
+using Moventra.Contracts.VehicleControl;
 
 var config = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
@@ -30,7 +31,14 @@ long sequence = 0;
 double latitude = -23.5505;
 double longitude = -46.6333;
 
-double speedKmh = 80;
+double speedKmh = 85;
+
+BlockVehicle? pendingBlock = null;
+
+// O caminhão já esta bloqueado?
+var isBlocked = false;
+
+var commandLock = new Lock();
 
 // CancellationTokenSource = "botão de parar".
 using var cts = new CancellationTokenSource();
@@ -47,6 +55,42 @@ var bus = Bus.Factory.CreateUsingRabbitMq(cfg =>
         h.Username(rabbitUser);
         h.Password(rabbitPassword);
     });
+    
+    cfg.ReceiveEndpoint($"vehicle-{vehicleId}", e =>
+    {
+        e.Handler<BlockVehicle>(async ctx =>
+        {
+            var command = ctx.Message;
+            var now = DateTimeOffset.UtcNow;
+
+            await ctx.Publish(new BlockCommandReceived
+            {
+                CommandId = command.CommandId,
+                VehicleId = vehicleId,
+                ReceivedAt = now
+            });
+
+            if (now > command.ExpiresAt)
+            {
+                await ctx.Publish(new BlockCommandRejected
+                {
+                    CommandId = command.CommandId,
+                    VehicleId = vehicleId,
+                    Reason = "Comando expirado",
+                    SpeedKmh = speedKmh,
+                    RejectedAt = now
+                });
+                Console.WriteLine(">>> Comando EXPIRADO. Recusado.");
+                return;
+            }
+
+            lock (commandLock)
+            {
+                pendingBlock = command;
+            }
+            Console.WriteLine($">>> COMANDO DE BLOQUEIO recebido! Motivo: {ctx.Message.Reason}");
+        });
+    });
 });
 
 await bus.StartAsync(cts.Token);
@@ -55,9 +99,43 @@ Console.WriteLine($"Caminhão {vehicleId} ligado. Ctrl+C para desligar.");
 
 while (!cts.Token.IsCancellationRequested)
 {
+
+    BlockVehicle? block;
+    lock (commandLock)
+    {
+        block = pendingBlock;
+    }
+
+    if (isBlocked)
+    {
+        // Bloqueado: não anda.
+        speedKmh = 0;
+    } else if (block is not null)
+    {
+        speedKmh = Math.Max(speedKmh - 5, 0);
+        
+        if (speedKmh == 0)
+        {
+            var vehicleBlocked = new VehicleBlocked
+            {
+                CommandId = block.CommandId,
+                VehicleId = vehicleId,
+                BlockedAt = DateTimeOffset.UtcNow
+            };
+
+            await bus.Publish(vehicleBlocked);
+            
+            isBlocked = true;
+            Console.WriteLine(">>> VEÍCULO BLOQUEADO.");
+        }
+    }
+    else
+    {
+        speedKmh += random.Next(-5, 6);
+        speedKmh = Math.Clamp(speedKmh, 90, 120);
+    }
+    
     sequence++;
-    speedKmh += random.Next(-5, 6);
-    speedKmh = Math.Clamp(speedKmh, 40, 120);
 
     var reading = new TelemetryRecorded
     {
