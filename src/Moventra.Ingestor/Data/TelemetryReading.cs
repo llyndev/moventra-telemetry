@@ -1,3 +1,5 @@
+using Moventra.Contracts.Telemetry;
+
 namespace Moventra.Ingestor.Data;
 
 public sealed class TelemetryReading
@@ -13,4 +15,19 @@ public sealed class TelemetryReading
     public double SpeedKmh { get; set; }
     public double EngineTempCelsius { get; set; }
     public int Rpm { get; set; }
+
+    public static TelemetryReading FromMessage(TelemetryRecorded message, DateTimeOffset receivedAt) =>
+        new TelemetryReading()
+        {
+            ReadingId = message.ReadingId,
+            VehicleId = message.VehicleId,
+            Sequence = message.Sequence,
+            RecordedAt = message.RecordedAt,
+            Latitude = message.Latitude,
+            Longitude = message.Longitude,
+            SpeedKmh = message.SpeedKmh,
+            Rpm = message.Rpm,
+            EngineTempCelsius = message.EngineTempCelsius,
+            ReceivedAt = receivedAt
+        };
 }

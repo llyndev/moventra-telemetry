@@ -25,6 +25,7 @@ builder.Services.AddMassTransit(x =>
     x.SetKebabCaseEndpointNameFormatter();
 
     x.AddConsumer<TelemetryRecordedConsumer>();
+    x.AddConsumer<TelemetryBatchResentConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -33,6 +34,12 @@ builder.Services.AddMassTransit(x =>
             h.Username(rabbitUser);
             h.Password(rabbitPassword);
         });
+        
+        cfg.UseMessageRetry(r => r.Exponential(
+            5,                              // Até 5 novas tentativas
+            TimeSpan.FromSeconds(1),       // Primeira espera: 1s
+            TimeSpan.FromSeconds(30),     // Nenhuma espera passa de 30s
+            TimeSpan.FromSeconds(2)));    // Cada espera cresce em relação à anterior
 
         cfg.ConfigureEndpoints(context);
     });

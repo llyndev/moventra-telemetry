@@ -97,6 +97,12 @@ await bus.StartAsync(cts.Token);
 
 Console.WriteLine($"Caminhão {vehicleId} ligado. Ctrl+C para desligar.");
 
+// sinal do caminhão
+var hasSignal = true;
+
+// leituras guardadas enquanto estava sem sinal
+var buffer = new List<TelemetryRecorded>();
+
 while (!cts.Token.IsCancellationRequested)
 {
 
@@ -137,6 +143,12 @@ while (!cts.Token.IsCancellationRequested)
     
     sequence++;
 
+    if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.S)
+    {
+        hasSignal = !hasSignal;
+        Console.WriteLine(hasSignal ? ">>> SINAL VOLTOU" : ">>> SEM SINAL");
+    }
+
     var reading = new TelemetryRecorded
     {
         ReadingId = Guid.NewGuid(),
@@ -152,7 +164,34 @@ while (!cts.Token.IsCancellationRequested)
     
     Console.WriteLine($"#{reading.Sequence} | {reading.SpeedKmh} km/h | {reading.Rpm} rpm |  {reading.EngineTempCelsius} °C");
 
-    await bus.Publish(reading);
+    if (hasSignal)
+    {
+        // sinal voltou e tem leituras guardadas, reenvia antes da leitura atual
+        if (buffer.Count > 0)
+        {
+            // divide a lista em pedaços de no máximo 100.
+            foreach (var chunk in buffer.Chunk(100))
+            {
+                await bus.Publish(new TelemetryBatchResent
+                {
+                    BatchId = Guid.NewGuid(),
+                    VehicleId = vehicleId,
+                    Readings = chunk,
+                    SentAt = DateTimeOffset.UtcNow
+                });
+            }
+            
+            Console.WriteLine($">>> Reenviadas {buffer.Count} leituras guardadas.");
+            buffer.Clear();
+        }
+        await bus.Publish(reading);
+    }
+    else
+    {
+        buffer.Add(reading);
+        Console.WriteLine($">>> Leitura guardada, quantidade de leituras: {buffer.Count}");
+    }
+    
     
     latitude += 0.0001;
 
